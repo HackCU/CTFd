@@ -154,6 +154,7 @@ def admin_config():
         utils.set_config("mailfrom_addr", request.form.get('mailfrom_addr', None))
         utils.set_config("mg_base_url", request.form.get('mg_base_url', None))
         utils.set_config("mg_api_key", request.form.get('mg_api_key', None))
+        utils.set_config("sg_key", request.form.get('sg_key', None))
 
         utils.set_config("freeze", freeze)
 
@@ -188,6 +189,7 @@ def admin_config():
     mailfrom_addr = utils.get_config('mailfrom_addr')
     mg_api_key = utils.get_config('mg_api_key')
     mg_base_url = utils.get_config('mg_base_url')
+    sg_key = utils.get_config('sg_key')
 
     view_after_ctf = utils.get_config('view_after_ctf')
     start = utils.get_config('start')
@@ -220,6 +222,7 @@ def admin_config():
         css=css,
         start=start,
         end=end,
+        sg_key=sg_key,
         freeze=freeze,
         hide_scores=hide_scores,
         mail_server=mail_server,

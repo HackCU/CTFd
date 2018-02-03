@@ -22,11 +22,21 @@ import zipfile
 import io
 
 from collections import namedtuple
+from distutils.version import StrictVersion
 from email.mime.text import MIMEText
+from socket import timeout
+
+import datafreeze
+import dataset
+import mistune
+import requests
+import sendgrid as sg
+import six
 from flask import current_app as app, request, redirect, url_for, session, render_template, abort, jsonify
 from flask_caching import Cache
 from flask_migrate import Migrate, upgrade as migrate_upgrade, stamp as migrate_stamp
 from itsdangerous import TimedSerializer, BadTimeSignature, Signer, BadSignature
+from sendgrid.helpers.mail import *
 from six.moves.urllib.parse import urlparse, urljoin, quote, unquote
 from sqlalchemy.exc import InvalidRequestError, IntegrityError
 from socket import timeout
@@ -58,6 +68,7 @@ class CTFdSerializer(JSONSerializer):
     Slightly modified datafreeze serializer so that we can properly
     export the CTFd database into a zip file.
     """
+
     def close(self):
         for path, result in self.buckets.items():
             result = self.wrap(result)
@@ -289,6 +300,7 @@ def admins_only(f):
             return f(*args, **kwargs)
         else:
             return redirect(url_for('auth.login', next=request.path))
+
     return decorated_function
 
 
@@ -299,6 +311,7 @@ def authed_only(f):
             return f(*args, **kwargs)
         else:
             return redirect(url_for('auth.login', next=request.path))
+
     return decorated_function
 
 
@@ -324,7 +337,9 @@ def ratelimit(method="POST", limit=50, interval=300, key_prefix="rl"):
                     else:
                         cache.set(key, int(current) + 1, timeout=interval)
             return f(*args, **kwargs)
+
         return decorated_function
+
     return ratelimit_decorator
 
 
@@ -553,7 +568,7 @@ def set_config(key, value):
 
 @cache.memoize()
 def can_send_mail():
-    return mailserver() or mailgun()
+    return mailserver() or mailgun() or sendgrid()
 
 
 @cache.memoize()
@@ -561,6 +576,15 @@ def mailgun():
     if app.config.get('MAILGUN_API_KEY') and app.config.get('MAILGUN_BASE_URL'):
         return True
     if get_config('mg_api_key') and get_config('mg_base_url'):
+        return True
+    return False
+
+
+@cache.memoize()
+def sendgrid():
+    if app.config.get('SENDGRID_KEY'):
+        return True
+    if get_config('sg_key'):
         return True
     return False
 
@@ -616,6 +640,29 @@ def sendmail(addr, text):
             return True, "Email sent"
         else:
             return False, "Mailgun settings are incorrect"
+    elif sendgrid():
+        if get_config('sg_key'):
+            key = get_config('sg_key')
+        elif app.config.get('SENDGRID_KEY'):
+            key = app.config.get('SENDGRID_KEY')
+        else:
+            return False, "SendGrid settings are missing"
+
+        try:
+            cli = sg.SendGridAPIClient(apikey=key)
+            from_email = Email(mailfrom_addr)
+            subject = "Message from {0}".format(ctf_name)
+            to_email = Email(addr)
+            content = Content("text/plain", text)
+            mail = Mail(from_email, subject, to_email, content)
+            r = cli.client.mail.send.post(request_body=mail.get())
+        except Exception as e:
+            return False, "{error} exception occured while handling your request".format(error=type(e).__name__)
+
+        if r.status_code in [200, 202]:
+            return True, "Email sent"
+        else:
+            return False, "Sendgrid settings are incorrect"
     elif mailserver():
         data = {
             'host': get_config('mail_server'),

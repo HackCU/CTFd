@@ -133,6 +133,9 @@
 						<li class="nav-item">
 							<a class="nav-link" href="#mailgun" aria-controls="mailgun" role="tab" data-toggle="tab">Mailgun</a>
 						</li>
+                        <li class="nav-item">
+							<a class="nav-link" href="#sendgrid" aria-controls="sendgrid" role="tab" data-toggle="tab">SendGrid</a>
+						</li>
 					</ul>
 
 					<div class="form-group">
@@ -213,6 +216,16 @@
 										{% if mg_api_key is defined and mg_api_key != None %}value="{{ mg_api_key }}"{% endif %}>
 							</div>
 						</div>
+                        <div role="tabpanel" class="tab-pane" id="sendgrid">
+
+                                <div class="form-group">
+                                    <label>SendGrid API Key:</label>
+                                    <input class="form-control" id='sg_key' name='sg_key' type='text'
+                                            placeholder="SendGrid API Key"
+                                            {% if sg_key is defined and sg_key != None %}value="{{ sg_key }}"{% endif %}>
+                                </div>
+
+                            </div>
 					</div>
 				</div>
 				<div role="tabpanel" class="tab-pane" id="ctftime-section">
